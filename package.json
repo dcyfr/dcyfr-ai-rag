@@ -53,7 +53,7 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@dcyfr/ai": "^0.1.0",
+    "@dcyfr/ai": "^1.0.0",
     "chromadb": "^1.8.0"
   },
   "peerDependenciesMeta": {
