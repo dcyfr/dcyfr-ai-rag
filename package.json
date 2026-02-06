@@ -1,0 +1,80 @@
+{
+  "name": "@dcyfr/ai-rag",
+  "version": "0.1.0",
+  "description": "RAG (Retrieval-Augmented Generation) system template - DCYFR AI starter",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./loaders": {
+      "import": "./dist/loaders/index.js",
+      "types": "./dist/loaders/index.d.ts"
+    },
+    "./stores": {
+      "import": "./dist/stores/index.js",
+      "types": "./dist/stores/index.d.ts"
+    },
+    "./pipeline": {
+      "import": "./dist/pipeline/index.js",
+      "types": "./dist/pipeline/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "type-check": "tsc --noEmit",
+    "example:basic": "tsx examples/basic-rag/index.ts",
+    "example:search": "tsx examples/semantic-search/index.ts",
+    "example:qa": "tsx examples/qa-system/index.ts"
+  },
+  "keywords": [
+    "ai",
+    "rag",
+    "retrieval",
+    "embeddings",
+    "vector-search",
+    "semantic-search",
+    "llm",
+    "dcyfr",
+    "template"
+  ],
+  "author": "DCYFR",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@dcyfr/ai": "^0.1.0",
+    "chromadb": "^1.8.0"
+  },
+  "peerDependenciesMeta": {
+    "@dcyfr/ai": {
+      "optional": true
+    },
+    "chromadb": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
