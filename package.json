@@ -23,6 +23,12 @@
       "types": "./dist/pipeline/index.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
@@ -35,7 +41,9 @@
     "example:basic": "tsx examples/basic-rag/index.ts",
     "example:search": "tsx examples/semantic-search/index.ts",
     "example:qa": "tsx examples/qa-system/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build && npm run test:run"
   },
   "keywords": [
     "ai",
@@ -50,6 +58,17 @@
   ],
   "author": "DCYFR",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcyfr/dcyfr-ai-rag.git"
+  },
+  "homepage": "https://github.com/dcyfr/dcyfr-ai-rag#readme",
+  "bugs": {
+    "url": "https://github.com/dcyfr/dcyfr-ai-rag/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "zod": "^3.22.4"
   },
