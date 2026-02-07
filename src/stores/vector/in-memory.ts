@@ -53,7 +53,7 @@ export class InMemoryVectorStore implements VectorStore {
 
     const results: SearchResult[] = [];
 
-    for (const [_id, doc] of this.documents) {
+    for (const doc of this.documents.values()) {
       // Apply metadata filter if provided
       if (filter && !this.matchesFilter(doc, filter)) {
         continue;

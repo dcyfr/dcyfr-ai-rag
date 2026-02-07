@@ -6,6 +6,7 @@
 import type { Document, DocumentLoader, LoaderConfig } from '../../types/index.js';
 import { promises as fs } from 'node:fs';
 import { basename } from 'node:path';
+import { Buffer } from 'node:buffer';
 
 /**
  * Load HTML documents
@@ -116,6 +117,6 @@ export class HTMLLoader implements DocumentLoader {
    * Generate document ID from source
    */
   private generateId(source: string): string {
-    return `html-${Buffer.from(source).toString('base64').slice(0, 16)}`;
+    return `html-${Buffer.from(source, 'utf-8').toString('base64').slice(0, 16)}`;
   }
 }
