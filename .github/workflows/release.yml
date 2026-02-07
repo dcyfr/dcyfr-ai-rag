@@ -34,7 +34,9 @@ jobs:
           cache: ''  # No cache - package is part of workspace
       
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install -D @changesets/cli @changesets/changelog-github
       
       - name: Upgrade npm for Trusted Publishing
         run: npm install -g npm@latest
