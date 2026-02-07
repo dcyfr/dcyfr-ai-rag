@@ -31,6 +31,11 @@ export class TextLoader implements DocumentLoader {
         },
       };
 
+      // Skip empty documents
+      if (!content.trim()) {
+        return [];
+      }
+
       // Apply chunking if configured
       if (config?.chunkSize) {
         return this.chunkDocument(document, config);
@@ -47,7 +52,7 @@ export class TextLoader implements DocumentLoader {
    */
   private chunkDocument(document: Document, config: LoaderConfig): Document[] {
     const chunkSize = config.chunkSize ?? 1000;
-    const chunkOverlap = config.chunkOverlap ?? 200;
+    const chunkOverlap = Math.min(config.chunkOverlap ?? 200, chunkSize - 1);
     const content = document.content;
     const chunks: Document[] = [];
 

@@ -8,7 +8,7 @@ import { writeFileSync, unlinkSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('TextLoader', () => {
-  const testDir = join(process.cwd(), 'tests', 'fixtures', 'temp');
+  const testDir = join(process.cwd(), 'tests', 'fixtures', 'temp-text');
   const testFile = join(testDir, 'test.txt');
 
   const setup = (content: string) => {
@@ -40,7 +40,7 @@ describe('TextLoader', () => {
     setup(longText);
 
     const loader = new TextLoader();
-    const docs = await loader.load(testFile, { chunkSize: 1000, overlap: 200 });
+    const docs = await loader.load(testFile, { chunkSize: 1000, chunkOverlap: 200 });
 
     expect(docs.length).toBeGreaterThan(1);
     expect(docs[0].content.length).toBeLessThanOrEqual(1000);
@@ -52,7 +52,7 @@ describe('TextLoader', () => {
     setup(text);
 
     const loader = new TextLoader();
-    const docs = await loader.load(testFile, { chunkSize: 100, overlap: 20 });
+    const docs = await loader.load(testFile, { chunkSize: 100, chunkOverlap: 20 });
 
     // Check that consecutive chunks have overlap
     for (let i = 0; i < docs.length - 1; i++) {

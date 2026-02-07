@@ -8,7 +8,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('MarkdownLoader', () => {
-  const testDir = join(process.cwd(), 'tests', 'fixtures', 'temp');
+  const testDir = join(process.cwd(), 'tests', 'fixtures', 'temp-markdown');
   const testFile = join(testDir, 'test.md');
 
   const setup = (content: string) => {
