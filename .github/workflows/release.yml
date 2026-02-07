@@ -31,10 +31,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+          cache: ''  # No cache - package is part of workspace
       
       - name: Install dependencies
-        run: npm ci
+        run: npm install
       
       - name: Upgrade npm for Trusted Publishing
         run: npm install -g npm@latest
