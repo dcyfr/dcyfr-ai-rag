@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: ''  # Explicitly disable cache (no lock files)
       
       - name: Install dependencies
         run: npm install
