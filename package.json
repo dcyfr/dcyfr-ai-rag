@@ -34,7 +34,8 @@
     "type-check": "tsc --noEmit",
     "example:basic": "tsx examples/basic-rag/index.ts",
     "example:search": "tsx examples/semantic-search/index.ts",
-    "example:qa": "tsx examples/qa-system/index.ts"
+    "example:qa": "tsx examples/qa-system/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "ai",
