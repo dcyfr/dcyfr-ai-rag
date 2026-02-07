@@ -1,17 +1,22 @@
-name: Publish to npm
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'  # Trigger on version tags: v0.1.0, v1.0.0, etc.
-  workflow_dispatch:  # Allow manual triggering
+    branches:
+      - main
 
 permissions:
-  contents: read
-  id-token: write  # Required for npm provenance (OIDC)
+  contents: write
+  pull-requests: write
+  id-token: write
+
+env:
+  NODE_VERSION: '20'
+  NPM_CONFIG_PROVENANCE: true
 
 jobs:
-  publish:
+  release:
+    name: Release to npm
     runs-on: ubuntu-latest
     environment: production
     
@@ -19,21 +24,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for changesets
+          fetch-depth: 0
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
-          cache: ''  # Explicitly disable cache (no lock files)
+          cache: 'npm'
       
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       
-      - name: Lint code
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@latest
+      
+      - name: Verify npm version and OIDC support
+        run: |
+          echo "npm version:"
+          npm --version
+          if ! npm --version | awk '{if ($1 < 11.5) exit 1}'; then
+            echo "❌ npm version must be >= 11.5 for OIDC support"
+            exit 1
+          fi
+          echo "✅ npm version compatible"
+          
+          echo "Checking OIDC environment:"
+          if env | grep -q ACTIONS_ID_TOKEN; then
+            echo "✅ OIDC token available"
+          else
+            echo "⚠️ OIDC token not found (may not be needed at this step)"
+          fi
+      
+      - name: Run linter
         run: npm run lint
-        continue-on-error: true  # Don't fail publish on lint warnings
+        continue-on-error: true
       
       - name: Type check
         run: npm run typecheck
@@ -44,23 +69,13 @@ jobs:
       - name: Build package
         run: npm run build
       
-      - name: Verify package contents
-        run: npm pack --dry-run
-      
-      - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
-      
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+      - name: Create Release Pull Request or Publish
+        uses: changesets/action@v1
+        with:
+          publish: npm run release
+          version: npm run changeset:version
+          commit: 'chore: update versions'
+          title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Published to npm: https://www.npmjs.com/package/${{ github.event.repository.name }}
-            
-            ## Changes
-            See CHANGELOG.md for details.
-          draft: false
-          prerelease: false
+

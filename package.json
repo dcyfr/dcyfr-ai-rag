@@ -43,7 +43,11 @@
     "example:qa": "tsx examples/qa-system/index.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build && npm run test:run"
+    "prepublishOnly": "npm run clean && npm run build && npm run test:run",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
+    "release": "npm run build && changeset publish"
   },
   "keywords": [
     "ai",
