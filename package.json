@@ -1,6 +1,6 @@
 {
   "name": "@dcyfr/ai-rag",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "RAG (Retrieval-Augmented Generation) system template - DCYFR AI starter",
   "type": "module",
   "main": "./dist/index.js",
