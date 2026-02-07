@@ -10,7 +10,7 @@ import {
   InMemoryVectorStore,
   IngestionPipeline,
   RetrievalPipeline,
-} from '../../../src/index.js';
+} from '../../src/index.js';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
