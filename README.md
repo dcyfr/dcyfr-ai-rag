@@ -12,13 +12,16 @@ Build production-ready RAG systems with document loading, embedding, vector stor
 
 ## ✨ Features
 
-- **📄 Document Loaders** - Load text, markdown, and HTML documents
-- **🔢 Embeddings** - Generate vector embeddings (with pluggable providers)
-- **🗄️ Vector Stores** - In-memory storage with cosine similarity search
-- **🔍 Semantic retrieval** - Find relevant documents by meaning, not just keywords
-- **🎯 Metadata Filtering** - Filter results by custom metadata
-- **⚡ Batch Processing** - Efficient ingestion with progress tracking
-- **📊 Built-in Examples** - Complete RAG workflows ready to run
+- **📄 Document Loaders** - Load text, markdown, and HTML documents with intelligent chunking
+- **🔢 Embeddings** - Pluggable providers (OpenAI, Cohere, Anthropic, Ollama local)
+- **🗄️ Vector Stores** - In-memory + persistent (Chroma, Pinecone, Weaviate)
+- **🔍 Semantic Retrieval** - Find relevant documents by meaning, not just keywords
+- **🎯 Metadata Filtering** - Complex filters (AND/OR, nested, temporal queries)
+- **⚡ Batch Processing** - Efficient ingestion with progress tracking and error handling
+- **🔄 Hybrid Search** - Combine keyword (BM25) + semantic search for best results
+- **📊 Multiple Distance Metrics** - Cosine similarity, dot product, euclidean
+- **🚀 Production Ready** - Retry logic, monitoring hooks, comprehensive error handling
+- **📚 Complete Documentation** - 4 comprehensive guides + advanced examples
 
 ---
 
@@ -78,9 +81,33 @@ console.log(result.results); // Ranked document chunks with scores
 
 ## 📚 Documentation
 
-### Document Loaders
+### Comprehensive Guides
 
-**TextLoader** - Load plain text files (`.txt`)
+Explore our detailed documentation covering all aspects of RAG development:
+
+- **[Document Loaders Guide](docs/DOCUMENT_LOADERS.md)** - Complete guide to loading and chunking documents
+  - TextLoader, MarkdownLoader, HTMLLoader
+  - Chunking strategies (fixed-size, sentence-aware, paragraph-based, semantic)
+  - Custom loaders and streaming
+ 
+- **[Embeddings Guide](docs/EMBEDDINGS.md)** - Vector embedding providers and techniques
+  - OpenAI, Cohere, Anthropic, Ollama (local)
+  - Batch processing and caching
+  - Similarity metrics explained
+
+- **[Vector Stores Guide](docs/VECTOR_STORES.md)** - Storage and retrieval optimization
+  - InMemoryVectorStore, ChromaVectorStore, PineconeVectorStore, WeaviateVectorStore
+  - Metadata filtering (AND/OR, nested queries)
+  - Performance optimization (batching, ANN search)
+
+- **[Pipelines Guide](docs/PIPELINES.md)** - End-to-end RAG workflows
+  - Ingestion pipeline (load → chunk → embed → store)
+  - Retrieval pipeline (query → search → assemble context)
+  - Production patterns (hybrid search, re-ranking, error handling)
+
+### Quick Reference
+
+**Document Loaders** - Load and chunk documents
 
 ```typescript
 import { TextLoader } from '@dcyfr/ai-rag';
@@ -201,18 +228,48 @@ const similar = await pipeline.findSimilar('doc-id-123', { limit: 10 });
 
 ---
 
-##  Examples
+## 💡 Examples
 
-- **Basic RAG** - [`examples/basic-rag/`](examples/basic-rag/) - Simple document ingestion and retrieval
-- **Semantic Search** - [`examples/semantic-search/`](examples/semantic-search/) - Advanced search with filtering
-- **Q&A System** - [`examples/qa-system/`](examples/qa-system/) - Question answering with context assembly
+### Basic Examples
 
-Run examples:
+- **[Basic RAG](examples/basic-rag/)** - Simple document ingestion and retrieval workflow
+- **[Semantic Search](examples/semantic-search/)** - Advanced search with metadata filtering
+- **[Q&A System](examples/qa-system/)** - Question answering with context assembly
+
+### Advanced Examples
+
+- **[Advanced RAG](examples/advanced-rag/)** - Production-ready workflow with:
+  - OpenAI embeddings for semantic search
+  - Chroma persistent vector store
+  - Metadata filtering with multiple criteria
+  - Progress tracking and error handling
+  - Question answering with context
+
+- **[Metadata Filtering](examples/metadata-filtering/)** - Complex query scenarios:
+  - AND/OR filter combinations
+  - Nested complex filters
+  - Temporal queries (date ranges)
+  - Tag-based search with arrays
+  - Multi-field filtering
+
+- **[Hybrid Search](examples/hybrid-search/)** - Combine keyword + semantic:
+  - BM25 keyword search implementation
+  - Weighted score fusion
+  - Reciprocal rank fusion (RRF)
+  - Performance comparisons
+
+### Running Examples
 
 ```bash
+# Basic examples
 npm run example:basic-rag
 npm run example:semantic-search
 npm run example:qa-system
+
+# Advanced examples
+npm run example:advanced-rag
+npm run example:metadata-filtering
+npm run example:hybrid-search
 ```
 
 ---
@@ -254,6 +311,154 @@ npm run example:qa-system
 │   Context   │ (Assembled results)
 └─────────────┘
 ```
+
+---
+
+## 💡 Best Practices
+
+### Chunking Strategy
+
+**Choose appropriate chunk sizes:**
+- Technical documentation: 800-1200 characters
+- Blog posts/articles: 1000-1500 characters
+- Code documentation: 600-1000 characters
+- Q&A pairs: 400-800 characters
+
+**Use 15-20% overlap:**
+```typescript
+const loader = new TextLoader();
+const docs = await loader.load('./document.txt', {
+  chunkSize: 1000,
+  chunkOverlap: 200,  // 20% overlap prevents context loss at boundaries
+});
+```
+
+**Preserve document structure:**
+- Use MarkdownLoader for `.md` files (preserves headings, code blocks)
+- Use HTMLLoader for web pages (extracts main content, excludes nav/footer)
+- Add rich metadata (source, category, tags, dates, author)
+
+### Embedding Selection
+
+**Development/Testing:**
+- SimpleEmbeddingGenerator (fast, no API costs, not for production)
+
+**Production (Recommended):**
+- OpenAI `text-embedding-3-small` (1536 dim, $0.02/1M tokens, fast, good quality)
+- OpenAI `text-embedding-3-large` (3072 dim, best quality, higher cost)
+- Cohere `embed-english-v3.0` (1024 dim, multilingual support)
+- Ollama local models (no API costs, data privacy, requires GPU)
+
+**Critical:** Use the same embedder for both documents and queries!
+
+### Search Optimization
+
+**Set appropriate similarity thresholds:**
+```typescript
+const result = await pipeline.query('search query', {
+  limit: 10,
+  threshold: 0.7,  // Filter results with score < 0.7 (adjust 0.6-0.8 based on needs)
+});
+```
+
+**Use metadata filtering to narrow search space:**
+```typescript
+const result = await pipeline.query('search query', {
+  limit: 5,
+  filter: {
+    operator: 'and',
+    filters: [
+      { field: 'category', operator: 'eq', value: 'technical' },
+      { field: 'published', operator: 'gte', value: '2024-01-01' },
+    ],
+  },
+});
+```
+
+**For large collections (>100k documents):**
+- Use persistent vector stores (Chroma, Pinecone, Weaviate)
+- Enable Approximate Nearest Neighbor (ANN) search
+- Implement caching for frequent queries
+
+---
+
+## 🔧 Troubleshooting
+
+### Poor Search Results
+
+**Problem:** Retrieved context not relevant to query
+
+**Solutions:**
+1. Verify using same embedder for docs and queries
+2. Increase similarity threshold (0.75-0.8 for higher quality)
+3. Test embedding quality:
+   ```typescript
+   const [ml, ai, pizza] = await embedder.embed(['machine learning', 'artificial intelligence', 'pizza']);
+   const similarity = cosineSimilarity(ml, ai);  // Should be >0.7
+   const unrelated = cosineSimilarity(ml, pizza); // Should be <0.3
+   ```
+4. Adjust chunk size (smaller chunks = more precise, larger = more context)
+5. Add metadata filters to narrow search space
+
+### High API Costs
+
+**Problem:** Embedding API costs too high
+
+**Solutions:**
+1. Implement caching for frequent queries:
+   ```typescript
+   const cache = new LRUCache<string, number[]>({ max: 10000, ttl: 1000 * 60 * 60 });
+   
+   async function embedWithCache(text: string): Promise<number[]> {
+     const cached = cache.get(text);
+     if (cached) return cached;
+     
+     const [embedding] = await embedder.embed([text]);
+     cache.set(text, embedding);
+     return embedding;
+   }
+   ```
+2. Use smaller embedding dimensions (OpenAI supports 512, 1024, 1536)
+3. Switch to local models (Ollama) for development/testing
+4. Batch process documents (100+ at a time) to reduce API calls
+
+### Slow Performance
+
+**Problem:** Search or ingestion too slow
+
+**Solutions:**
+1. **For ingestion:**
+   - Increase batch size: `{ batchSize: 100 }`
+   - Process files in parallel (use Promise.all with batches)
+   - Use streaming loader for huge files
+
+2. **For search:**
+   - Reduce result limit: `{ limit: 5 }` instead of 50
+   - Use metadata filters to narrow search space
+   - Enable ANN search for collections >100k:
+     ```typescript
+     const store = new InMemoryVectorStore({
+       useApproximateSearch: true,
+       approximationParams: { nprobe: 10, nlist: 100 },
+     });
+     ```
+   - Use persistent vector stores with indexing (Pinecone, Weaviate)
+
+### Memory Issues
+
+**Problem:** Application crashes with large document collections
+
+**Solutions:**
+1. Use persistent vector stores instead of in-memory
+2. Set maxDocuments limit with LRU eviction:
+   ```typescript
+   const store = new InMemoryVectorStore({
+     maxDocuments: 100000,
+     evictionPolicy: 'lru',
+   });
+   ```
+3. Process documents in smaller batches
+4. Use streaming loader for large files
 
 ---
 
@@ -332,7 +537,34 @@ const result = await ingestion.ingest(files, {
 
 ---
 
-## 📄 License
+## �️ Roadmap
+
+### v1.1 (Planned)
+- [ ] Additional vector stores (Qdrant, Milvus)
+- [ ] Streaming ingestion pipeline
+- [ ] Built-in caching layer
+- [ ] Query expansion and synonyms
+- [ ] Document versioning and updates
+
+### v1.2 (Planned)
+- [ ] Hybrid search (keyword + semantic) built-in
+- [ ] Re-ranking strategies (cross-encoder models)
+- [ ] Multi-query retrieval
+- [ ] Sparse + dense vector support
+- [ ] Advanced chunking (recursive, semantic)
+
+### v2.0 (Future)
+- [ ] Distributed vector search
+- [ ] Graph RAG (knowledge graphs + vectors)
+- [ ] Multi-modal embeddings (text + images)
+- [ ] Real-time indexing
+- [ ] Auto-tuning (chunk size, thresholds)
+
+See our [GitHub Issues](https://github.com/dcyfr/ai-rag/issues) for feature requests and progress.
+
+---
+
+## �📄 License
 
 MIT © [DCYFR](https://www.dcyfr.ai)
 
