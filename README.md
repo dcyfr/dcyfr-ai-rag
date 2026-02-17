@@ -5,7 +5,7 @@
 Build production-ready RAG systems with document loading, embedding, vector stores, and semantic search.
 
 [![npm version](https://img.shields.io/npm/v/@dcyfr/ai-rag.svg)](https://www.npmjs.com/package/@dcyfr/ai-rag)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -57,7 +57,7 @@ import {
 // 1. Setup components
 const loader = new TextLoader();
 const embedder = new SimpleEmbeddingGenerator({ dimensions: 384 });
-const store = new InMemory VectorStore({
+const store = new InMemoryVectorStore({
   collectionName: 'my-docs',
   embeddingDimensions: 384,
 });
