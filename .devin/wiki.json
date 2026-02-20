@@ -1,0 +1,59 @@
+{
+  "repo_notes": [
+    {
+      "content": "dcyfr-ai-rag is a Retrieval-Augmented Generation (RAG) system package providing vector search, document indexing, and semantic retrieval capabilities for AI agents. Integrates with @dcyfr/ai framework for context-aware agent responses.",
+      "author": "DCYFR Workspace Agent"
+    },
+    {
+      "content": "Core capabilities: Document chunking and embedding generation, vector database integration (Pinecone, Weaviate, local), semantic search with hybrid ranking, context retrieval for LLM prompts, incremental index updates, metadata filtering.",
+      "author": "DCYFR Workspace Agent"
+    },
+    {
+      "content": "Priority documentation: src/embeddings/ (embedding generation strategies), src/vectordb/ (vector database adapters), src/retrieval/ (search algorithms, ranking), src/chunking/ (document splitting strategies), src/indexing/ (incremental updates, batch processing).",
+      "author": "DCYFR Workspace Agent"
+    },
+    {
+      "content": "Integration patterns: Works with @dcyfr/ai agents to provide relevant context, supports custom document loaders, configurable chunking strategies (fixed-size, semantic, recursive), hybrid search (vector + keyword), metadata filtering for precision.",
+      "author": "DCYFR Workspace Agent"
+    }
+  ],
+  "pages": [
+    {
+      "title": "RAG System Architecture",
+      "purpose": "High-level RAG architecture, document ingestion pipeline, vector storage strategy, retrieval flow, integration with @dcyfr/ai framework"
+    },
+    {
+      "title": "Document Processing",
+      "purpose": "Document loaders for various formats (PDF, MD, HTML, code), chunking strategies (fixed-size, semantic boundaries, recursive splitting), preprocessing and cleaning, metadata extraction",
+      "parent": "RAG System Architecture"
+    },
+    {
+      "title": "Embedding Generation",
+      "purpose": "Embedding model selection and configuration in src/embeddings/, OpenAI embeddings, local embedding models, batch processing, caching strategies, cost optimization",
+      "parent": "RAG System Architecture"
+    },
+    {
+      "title": "Vector Database Integration",
+      "purpose": "Vector database adapters in src/vectordb/, Pinecone integration, Weaviate integration, local vector storage, index management, schema design, performance tuning",
+      "parent": "RAG System Architecture"
+    },
+    {
+      "title": "Retrieval & Ranking",
+      "purpose": "Semantic search implementation in src/retrieval/, similarity metrics (cosine, dot product), hybrid search (vector + BM25), reranking strategies, result filtering and deduplication",
+      "parent": "RAG System Architecture"
+    },
+    {
+      "title": "Index Management",
+      "purpose": "Indexing pipeline in src/indexing/, incremental updates, batch processing, index versioning, schema migrations, monitoring index health",
+      "parent": "RAG System Architecture"
+    },
+    {
+      "title": "Agent Integration",
+      "purpose": "How RAG system integrates with @dcyfr/ai agents, context injection into prompts, retrieval triggers, caching retrieved context, feedback loops for relevance"
+    },
+    {
+      "title": "Configuration & Tuning",
+      "purpose": "Configuration options, chunking parameters, retrieval thresholds, embedding model selection, vector DB connection settings, performance optimization"
+    }
+  ]
+}
