@@ -10,6 +10,33 @@ Build production-ready RAG systems with document loading, embedding, vector stor
 
 ---
 
+## ⚡ 30-Second Quick Start
+
+```bash
+# Install package
+npm install @dcyfr/ai-rag
+
+# Basic usage
+import { TextLoader, InMemoryVectorStore } from '@dcyfr/ai-rag';
+
+const loader = new TextLoader();
+const store = new InMemoryVectorStore();
+# ✅ RAG system ready for document ingestion
+```
+
+---
+
+## 🧭 Related Packages
+
+| Package | Purpose | Type |
+|---------|---------|------|
+| [@dcyfr/ai](../dcyfr-ai) | Core AI framework | npm package |
+| [@dcyfr/ai-agents](../dcyfr-ai-agents) | Autonomous agents | Template |
+| [@dcyfr/ai-chatbot](../dcyfr-ai-chatbot) | Chatbot template | Template |
+| [dcyfr-labs](../dcyfr-labs) | Production Next.js app | Application |
+
+---
+
 ## ✨ Features
 
 - **📄 Document Loaders** - Load text, markdown, and HTML documents with intelligent chunking
