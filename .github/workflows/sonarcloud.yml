@@ -53,7 +53,7 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+          if [ -z "$SONAR_TOKEN" ]; then
             echo "Missing repository secret: SONAR_TOKEN"
             exit 1
           fi
@@ -62,10 +62,18 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: $SONAR_TOKEN
         with:
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          SONAR_TOKEN: op://CI-CD/workspace-sonar-token/credential
+
