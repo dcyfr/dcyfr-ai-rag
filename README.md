@@ -1,5 +1,7 @@
 # @dcyfr/ai-rag
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dcyfr/dcyfr-ai-rag)
+
 > **RAG (Retrieval-Augmented Generation) framework for Node.js and TypeScript**
 
 Build production-ready RAG systems with document loading, embedding, vector stores, and semantic search.
