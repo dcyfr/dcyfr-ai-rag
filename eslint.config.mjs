@@ -1,24 +1,11 @@
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
+// Extends shared workspace base config.
+// See eslint.config.base.mjs at workspace root for common settings.
+import { createStrictConfig } from '../eslint.config.base.mjs';
 
-export default [
-  {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+export default createStrictConfig({
+  // Strict mode: no-explicit-any and no-unused-vars are 'error' (inherited from base)
+  customRules: {
+    // Disable problematic rule causing TypeError in this package
+    '@typescript-eslint/no-unused-expressions': 'off',
   },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    rules: {
-      // Disable problematic rule causing TypeError
-      '@typescript-eslint/no-unused-expressions': 'off',
-      // Allow unused vars prefixed with underscore (common pattern for interface implementations)
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-        },
-      ],
-    },
-  },
-];
+});
