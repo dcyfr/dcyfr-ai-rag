@@ -1,21 +1,4 @@
-import { defineConfig } from 'vitest/config';
+// Extends shared workspace base config.
+// See vitest.config.base.ts at the workspace root for settings.
+export { default } from '../vitest.config.base.ts';
 
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/**',
-        'dist/**',
-        'tests/**',
-        '**/*.d.ts',
-        '**/*.config.*',
-        '**/examples/**',
-      ],
-    },
-    include: ['tests/**/*.test.ts'],
-  },
-});
