@@ -77,3 +77,4 @@ jobs:
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+# triggered: 2026-02-28 automatic-analysis-disabled
