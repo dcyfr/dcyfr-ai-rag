@@ -13,3 +13,6 @@ export * from './stores/index.js';
 
 // Pipelines
 export * from './pipeline/index.js';
+
+// Document ingestion / conversion
+export * from './ingestion/index.js';

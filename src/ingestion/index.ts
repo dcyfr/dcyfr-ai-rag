@@ -7,7 +7,6 @@ export { convertToMarkdown, convertBatch, checkMarkItDownInstalled } from './mar
 export type {
   ConversionOptions,
   ConversionResult,
-  DocumentMetadata,
   SupportedFormat,
   SubprocessMessage,
 } from './types.js';

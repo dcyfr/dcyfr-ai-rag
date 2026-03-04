@@ -76,6 +76,16 @@ Query → Embedder → Vector Search → Context Assembly
 - Provide progress callbacks for long operations
 - Handle errors gracefully, report in results
 
+### 5. Document Conversion Pattern (MarkItDown)
+
+`IngestionPipeline.ingest()` now supports optional preprocessing:
+
+- `enableDocumentConversion` (default `false`) to preserve plain-text path
+- Conversion metadata (`originalFileType`, `pageCount`, `conversionTimestamp`) attached to chunk metadata
+- `onConversionError` callback for per-file failure handling
+- Ingestion summary must include `successCount`, `failureCount`, and `errors`
+- Metrics should include conversion latency and throughput when conversion is enabled
+
 ---
 
 ## Code Patterns

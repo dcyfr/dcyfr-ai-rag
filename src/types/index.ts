@@ -249,6 +249,26 @@ export interface IngestionOptions {
   batchSize?: number;
   /** Loader configuration */
   loaderConfig?: LoaderConfig;
+  /** Enable MarkItDown preprocessing for non-text documents */
+  enableDocumentConversion?: boolean;
+  /** Conversion timeout in milliseconds */
+  conversionTimeoutMs?: number;
+  /** Conversion file size limit in bytes */
+  conversionMaxFileSize?: number;
+  /** Enable LLM image descriptions during conversion */
+  enableLLMDescriptions?: boolean;
+  /** Chunking strategy */
+  chunkingStrategy?: 'semantic' | 'fixed';
+  /** Fixed chunk size (characters) */
+  fixedChunkSize?: number;
+  /** Fixed chunk overlap (characters) */
+  fixedChunkOverlap?: number;
+  /** Callback for conversion errors */
+  onConversionError?: (error: {
+    file: string;
+    error: string;
+    errorType?: string;
+  }) => void;
   /** Progress callback */
   onProgress?: (
     current: number,
@@ -268,10 +288,25 @@ export interface IngestionOptions {
 export interface IngestionResult {
   /** Number of documents processed */
   documentsProcessed: number;
+  /** Number of input files successfully processed */
+  successCount: number;
+  /** Number of input files that failed processing */
+  failureCount: number;
   /** Number of chunks generated */
   chunksGenerated: number;
   /** Errors during ingestion */
   errors: Array<{ file: string; error: string }>;
+  /** Performance and resource metrics */
+  metrics?: {
+    /** Average conversion duration per file in milliseconds */
+    averageConversionMs?: number;
+    /** Documents converted per second */
+    documentsPerSecond?: number;
+    /** Peak heap usage in MB during ingestion */
+    peakHeapUsedMb?: number;
+    /** Warnings generated during ingestion */
+    warnings?: string[];
+  };
   /** Total duration in milliseconds */
   durationMs: number;
 }

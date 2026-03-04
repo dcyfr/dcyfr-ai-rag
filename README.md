@@ -11,6 +11,99 @@ Build production-ready RAG systems with document loading, embedding, vector stor
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
+- [Document Conversion](#-document-conversion-markitdown)
+- **Document Conversion** - Convert 15+ file formats (PDF, DOCX, PPTX, XLSX, images, etc.) to Markdown via MarkItDown Python library
+---
+
+## 📄 Document Conversion (MarkItDown)
+
+Convert diverse document formats to LLM-optimized Markdown:
+
+```typescript
+import { convertToMarkdown, convertBatch } from '@dcyfr/ai-rag/ingestion';
+
+// Single document conversion
+const result = await convertToMarkdown('/path/to/document.pdf', {
+  timeout: 45000, // 45 seconds
+  maxFileSize: 50 * 1024 * 1024, // 50 MB
+  enableLLMDescriptions: true, // Use GPT-4 Vision for image descriptions
+});
+
+console.log(result.markdown); // Converted markdown content
+console.log(result.metadata); // File size, duration, page count, etc.
+
+// Batch conversion (parallel, concurrency-controlled)
+const files = ['/docs/report.pdf', '/slides/deck.pptx', '/data/sheet.xlsx'];
+const results = await convertBatch(files, { timeout: 60000 });
+
+results.forEach((r, i) => {
+  if (r.success) {
+    console.log(`✅ ${files[i]}: ${r.markdown.length} chars`);
+  } else {
+    console.error(`❌ ${files[i]}: ${r.error}`);
+  }
+});
+```
+
+**Supported Formats:**
+- **Documents:** PDF, DOCX, PPTX, XLSX, CSV, TXT, Markdown
+- **Web:** HTML, XML, JSON
+- **Images:** PNG, JPG, JPEG, GIF, WEBP (with optional LLM-powered OCR)
+- **Audio:** MP3, WAV, M4A (transcription)
+- **Archives:** EPUB, ZIP
+
+**Installation:**
+```bash
+# Python environment required (workspace already configured)
+pip install markitdown>=0.1.5
+
+# Or use workspace .venv (pre-configured)
+source /path/to/workspace/.venv/bin/activate
+```
+
+**Performance:**
+- **Latency:** 200-500ms per document (PDF/Office), <100ms (text/HTML)
+- **Concurrency:** Max 3 parallel conversions (configurable)
+- **Memory:** ~50-200 MB per conversion (temp files auto-cleaned)
+
+**Error Handling:**
+```typescript
+import { ConversionError, ConversionErrorType } from '@dcyfr/ai-rag/ingestion';
+
+try {
+  const result = await convertToMarkdown('/path/to/file.pdf');
+} catch (error) {
+  if (error instanceof ConversionError) {
+    switch (error.type) {
+      case ConversionErrorType.TIMEOUT:
+        console.error('Conversion timed out - file too large?');
+        break;
+      case ConversionErrorType.FILE_TOO_LARGE:
+        console.error(`File exceeds ${error.details?.maxFileSize} bytes`);
+        break;
+      case ConversionErrorType.UNSUPPORTED_FORMAT:
+        console.error('File format not supported by MarkItDown');
+        break;
+      default:
+        console.error(`Conversion failed: ${error.message}`);
+    }
+  }
+}
+```
+
+**LLM Integration (Optional):**
+```typescript
+// Enable GPT-4 Vision or Claude for image descriptions
+const result = await convertToMarkdown('/path/to/presentation.pptx', {
+  enableLLMDescriptions: true,
+  llmModel: 'gpt-4-vision-preview', // or 'claude-3-opus-20240229'
+});
+
+// Requires environment variables:
+// OPENAI_API_KEY=sk-...
+// ANTHROPIC_API_KEY=sk-ant-...
+```
+
 
 ## ⚡ 30-Second Quick Start
 

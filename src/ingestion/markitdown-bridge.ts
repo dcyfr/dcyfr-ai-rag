@@ -4,9 +4,10 @@
  */
 
 import { spawn } from 'node:child_process';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve, basename, extname } from 'node:path';
+import { join, resolve, basename, extname, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   ConversionOptions,
   ConversionResult,
@@ -14,6 +15,10 @@ import type {
   SupportedFormat,
 } from './types.js';
 import { ConversionError, ConversionErrorType } from './types.js';
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Default conversion options
@@ -130,13 +135,36 @@ async function validateFile(filePath: string, maxFileSize: number): Promise<void
 }
 
 /**
- * Find Python executable in workspace .venv
+ * Find Python executable with worktree-aware fallback order
  */
 function getPythonExecutable(): string {
-  // Workspace root is 2 levels up from dcyfr-ai-rag/src/ingestion
+  const explicitPython = process.env.PYTHON_EXECUTABLE;
+  if (explicitPython && existsSync(explicitPython)) {
+    return explicitPython;
+  }
+
+  const activeVenv = process.env.VIRTUAL_ENV;
+  if (activeVenv) {
+    const activeVenvPython = join(activeVenv, 'bin', 'python');
+    if (existsSync(activeVenvPython)) {
+      return activeVenvPython;
+    }
+  }
+
   const workspaceRoot = resolve(__dirname, '../../../..');
-  const venvPython = join(workspaceRoot, '.venv', 'bin', 'python');
-  return venvPython;
+  const candidatePaths = [
+    join(workspaceRoot, '.venv', 'bin', 'python'),
+    join(workspaceRoot, '..', 'dcyfr-workspace', '.venv', 'bin', 'python'),
+    '/usr/bin/python3',
+  ];
+
+  for (const candidate of candidatePaths) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return 'python3';
 }
 
 /**
@@ -183,7 +211,7 @@ export async function convertToMarkdown(
     const python = getPythonExecutable();
     const startMs = Date.now();
     
-    const child = spawn(python, ['-m', 'mark itdown', resolvedPath], {
+    const child = spawn(python, ['-m', 'markitdown', resolvedPath], {
       cwd: tempDir,
       timeout: opts.timeout,
       env: {
@@ -277,7 +305,7 @@ export async function convertToMarkdown(
     };
 
     // Extract page count from stderr (MarkItDown logs this)
-    const pageRegex = /(\d+)\s+pages?/i;
+    const pageRegex = /(\p{N}+)\s+pages?/iu;
     const pageMatch = pageRegex.exec(stderr);
     if (pageMatch) {
       metadata.pageCount = Number.parseInt(pageMatch[1], 10);
@@ -361,7 +389,7 @@ export async function convertBatch(
 export async function checkMarkItDownInstalled(): Promise<boolean> {
   try {
     const python = getPythonExecutable();
-    const child = spawn(python, ['-m', 'markitdown', '--version'], {
+    const child = spawn(python, ['-c', 'import markitdown; print("ok")'], {
       timeout: 5000,
     });
 
