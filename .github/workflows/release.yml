@@ -43,13 +43,19 @@ jobs:
       
       - name: Verify npm version and OIDC support
         run: |
-          echo "npm version:"
-          npm --version
-          if ! npm --version | awk '{if ($1 < 11.5) exit 1}'; then
-            echo "❌ npm version must be >= 11.5 for OIDC support"
+          NPM_VERSION=$(npm --version)
+          echo "npm version: $NPM_VERSION"
+          
+          # Extract major and minor version numbers
+          NPM_MAJOR=$(echo $NPM_VERSION | cut -d. -f1)
+          NPM_MINOR=$(echo $NPM_VERSION | cut -d. -f2)
+          
+          # Check if version >= 11.5
+          if [ "$NPM_MAJOR" -lt 11 ] || { [ "$NPM_MAJOR" -eq 11 ] && [ "$NPM_MINOR" -lt 5 ]; }; then
+            echo "❌ npm version must be >= 11.5 for OIDC support (found: $NPM_VERSION)"
             exit 1
           fi
-          echo "✅ npm version compatible"
+          echo "✅ npm version $NPM_VERSION compatible (>= 11.5)"
           
           echo "Checking OIDC environment:"
           if env | grep -q ACTIONS_ID_TOKEN; then
