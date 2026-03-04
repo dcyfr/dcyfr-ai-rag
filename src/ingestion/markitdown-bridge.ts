@@ -168,6 +168,132 @@ function getPythonExecutable(): string {
 }
 
 /**
+ * Subprocess output collector
+ */
+interface SubprocessOutput {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
+
+/**
+ * Execute Python subprocess with timeout handling
+ */
+async function executeSubprocess(
+  python: string,
+  args: string[],
+  options: {
+    cwd: string;
+    timeout: number;
+    env: NodeJS.ProcessEnv;
+    filePath: string;
+  }
+): Promise<SubprocessOutput> {
+  const child = spawn(python, args, {
+    cwd: options.cwd,
+    timeout: options.timeout,
+    env: options.env,
+  });
+
+  let stdout = '';
+  let stderr = '';
+
+  child.stdout?.on('data', (data) => {
+    stdout += data.toString();
+  });
+
+  child.stderr?.on('data', (data) => {
+    stderr += data.toString();
+  });
+
+  const exitCode = await new Promise<number | null>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 1000);
+      reject(new ConversionError(
+        ConversionErrorType.TIMEOUT,
+        `Conversion exceeded timeout of ${options.timeout}ms`,
+        { filePath: options.filePath, timeout: options.timeout }
+      ));
+    }, options.timeout);
+
+    child.on('exit', (code) => {
+      clearTimeout(timeoutId);
+      resolve(code);
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeoutId);
+      reject(new ConversionError(
+        ConversionErrorType.SUBPROCESS_ERROR,
+        `Python subprocess failed: ${error.message}`,
+        { error: error.message, python }
+      ));
+    });
+  });
+
+  return { stdout, stderr, exitCode };
+}
+
+/**
+ * Build conversion result metadata
+ */
+async function buildMetadata(
+  fileName: string,
+  resolvedPath: string,
+  format: SupportedFormat,
+  durationMs: number,
+  stderr: string,
+  opts: Required<Pick<ConversionOptions, 'enableLLMDescriptions'>>
+): Promise<DocumentMetadata> {
+  const stats = await fs.stat(resolvedPath);
+  
+  const metadata: DocumentMetadata = {
+    fileName,
+    fileSize: stats.size,
+    format,
+    convertedAt: new Date().toISOString(),
+    durationMs,
+    usedLLMDescriptions: opts.enableLLMDescriptions,
+  };
+
+  const pageRegex = /(\p{N}+)\s+pages?/iu;
+  const pageMatch = pageRegex.exec(stderr);
+  if (pageMatch) {
+    metadata.pageCount = Number.parseInt(pageMatch[1], 10);
+  }
+
+  return metadata;
+}
+
+/**
+ * Validate subprocess execution result
+ */
+function validateSubprocessResult(
+  output: SubprocessOutput,
+  resolvedPath: string
+): string {
+  if (output.exitCode !== 0) {
+    throw new ConversionError(
+      ConversionErrorType.SUBPROCESS_ERROR,
+      `MarkItDown conversion failed with exit code ${output.exitCode}`,
+      { exitCode: output.exitCode, stderr: output.stderr, stdout: output.stdout, filePath: resolvedPath }
+    );
+  }
+
+  const markdown = output.stdout.trim();
+  if (!markdown) {
+    throw new ConversionError(
+      ConversionErrorType.SUBPROCESS_ERROR,
+      'MarkItDown returned empty output',
+      { stderr: output.stderr, filePath: resolvedPath }
+    );
+  }
+
+  return markdown;
+}
+
+/**
  * Convert document to Markdown using Python MarkItDown subprocess
  * 
  * @param filePath - Absolute path to file to convert
@@ -195,131 +321,53 @@ export async function convertToMarkdown(
     ...options,
   };
 
-  // Validate file before processing
   await validateFile(resolvedPath, opts.maxFileSize);
 
-  // Detect format
   const format = detectFormat(resolvedPath);
   const fileName = basename(resolvedPath);
 
-  // Create temporary directory for processing
   let tempDir: string | null = null;
   try {
     tempDir = await createTempDir();
-
-    // Spawn Python subprocess
     const python = getPythonExecutable();
     const startMs = Date.now();
-    
-    const child = spawn(python, ['-m', 'markitdown', resolvedPath], {
-      cwd: tempDir,
-      timeout: opts.timeout,
-      env: {
-        ...process.env,
-        // Pass LLM settings if enabled
-        ...(opts.enableLLMDescriptions && {
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-          LLM_MODEL: opts.llmModel || 'gpt-4-vision-preview',
-        }),
-      },
-    });
 
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
+    const output = await executeSubprocess(
+      python,
+      ['-m', 'markitdown', resolvedPath],
+      {
+        cwd: tempDir,
+        timeout: opts.timeout,
+        env: {
+          ...process.env,
+          ...(opts.enableLLMDescriptions && {
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+            LLM_MODEL: opts.llmModel || 'gpt-4-vision-preview',
+          }),
+        },
+        filePath: resolvedPath,
+      }
+    );
 
-    // Collect subprocess output
-    child.stdout?.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr?.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    // Wait for subprocess to complete or timeout
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-        setTimeout(() => child.kill('SIGKILL'), 1000); // Force kill if SIGTERM doesn't work
-        reject(new ConversionError(
-          ConversionErrorType.TIMEOUT,
-          `Conversion exceeded timeout of ${opts.timeout}ms`,
-          { filePath: resolvedPath, timeout: opts.timeout }
-        ));
-      }, opts.timeout);
-
-      child.on('exit', (code) => {
-        clearTimeout(timeoutId);
-        resolve(code);
-      });
-
-      child.on('error', (error) => {
-        clearTimeout(timeoutId);
-        reject(new ConversionError(
-          ConversionErrorType.SUBPROCESS_ERROR,
-          `Python subprocess failed: ${error.message}`,
-          { error: error.message, python }
-        ));
-      });
-    });
-
-    // Handle subprocess errors
-    if (timedOut) {
-      // Timeout error already thrown above
-      throw new Error('Timeout error not caught'); // Should never reach here
-    }
-
-    if (exitCode !== 0) {
-      throw new ConversionError(
-        ConversionErrorType.SUBPROCESS_ERROR,
-        `MarkItDown conversion failed with exit code ${exitCode}`,
-        { exitCode, stderr, stdout, filePath: resolvedPath }
-      );
-    }
-
-    // Parse markdown output
-    const markdown = stdout.trim();
-    if (!markdown) {
-      throw new ConversionError(
-        ConversionErrorType.SUBPROCESS_ERROR,
-        'MarkItDown returned empty output',
-        { stderr, filePath: resolvedPath }
-      );
-    }
-
-    // Get file size for metadata
-    const stats = await fs.stat(resolvedPath);
+    const markdown = validateSubprocessResult(output, resolvedPath);
     const durationMs = Date.now() - startMs;
-
-    // Build metadata
-    const metadata: DocumentMetadata = {
+    const metadata = await buildMetadata(
       fileName,
-      fileSize: stats.size,
+      resolvedPath,
       format,
-      convertedAt: new Date().toISOString(),
       durationMs,
-      usedLLMDescriptions: opts.enableLLMDescriptions,
-    };
+      output.stderr,
+      opts
+    );
 
-    // Extract page count from stderr (MarkItDown logs this)
-    const pageRegex = /(\p{N}+)\s+pages?/iu;
-    const pageMatch = pageRegex.exec(stderr);
-    if (pageMatch) {
-      metadata.pageCount = Number.parseInt(pageMatch[1], 10);
-    }
-
-    // Return success result
     return {
       markdown,
       metadata,
       success: true,
-      warnings: stderr ? [stderr] : undefined,
+      warnings: output.stderr ? [output.stderr] : undefined,
     };
   } catch (error) {
-    // Handle conversion errors
     if (error instanceof ConversionError) {
       throw error;
     }
@@ -330,7 +378,6 @@ export async function convertToMarkdown(
       { error: error instanceof Error ? error.message : String(error), filePath: resolvedPath }
     );
   } finally {
-    // Always cleanup temp directory
     if (tempDir) {
       await cleanupTempDir(tempDir);
     }
