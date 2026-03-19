@@ -47,7 +47,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          SONAR_TOKEN: op://CI-CD/workspace-sonar-token/credential
+          SONAR_TOKEN: op://h22iwfa72vp3bwr7jtldveuovq/vqrr7agvl6oje6afswaxruq5cq/credential
 
       - name: Validate SonarCloud configuration
         run: |
