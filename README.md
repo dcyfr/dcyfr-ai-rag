@@ -11,8 +11,10 @@ Build production-ready RAG systems with document loading, embedding, vector stor
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
+
 - [Document Conversion](#-document-conversion-markitdown)
 - **Document Conversion** - Convert 15+ file formats (PDF, DOCX, PPTX, XLSX, images, etc.) to Markdown via MarkItDown Python library
+
 ---
 
 ## 📄 Document Conversion (MarkItDown)
@@ -20,10 +22,10 @@ Build production-ready RAG systems with document loading, embedding, vector stor
 Convert diverse document formats to LLM-optimized Markdown:
 
 ```typescript
-import { convertToMarkdown, convertBatch } from '@dcyfr/ai-rag/ingestion';
+import { convertToMarkdown, convertBatch } from "@dcyfr/ai-rag/ingestion";
 
 // Single document conversion
-const result = await convertToMarkdown('/path/to/document.pdf', {
+const result = await convertToMarkdown("/path/to/document.pdf", {
   timeout: 45000, // 45 seconds
   maxFileSize: 50 * 1024 * 1024, // 50 MB
   enableLLMDescriptions: true, // Use GPT-4 Vision for image descriptions
@@ -33,7 +35,7 @@ console.log(result.markdown); // Converted markdown content
 console.log(result.metadata); // File size, duration, page count, etc.
 
 // Batch conversion (parallel, concurrency-controlled)
-const files = ['/docs/report.pdf', '/slides/deck.pptx', '/data/sheet.xlsx'];
+const files = ["/docs/report.pdf", "/slides/deck.pptx", "/data/sheet.xlsx"];
 const results = await convertBatch(files, { timeout: 60000 });
 
 results.forEach((r, i) => {
@@ -46,6 +48,7 @@ results.forEach((r, i) => {
 ```
 
 **Supported Formats:**
+
 - **Documents:** PDF, DOCX, PPTX, XLSX, CSV, TXT, Markdown
 - **Web:** HTML, XML, JSON
 - **Images:** PNG, JPG, JPEG, GIF, WEBP (with optional LLM-powered OCR)
@@ -53,6 +56,7 @@ results.forEach((r, i) => {
 - **Archives:** EPUB, ZIP
 
 **Installation:**
+
 ```bash
 # Python environment required (workspace already configured)
 pip install markitdown>=0.1.5
@@ -62,27 +66,29 @@ source /path/to/workspace/.venv/bin/activate
 ```
 
 **Performance:**
+
 - **Latency:** 200-500ms per document (PDF/Office), <100ms (text/HTML)
 - **Concurrency:** Max 3 parallel conversions (configurable)
 - **Memory:** ~50-200 MB per conversion (temp files auto-cleaned)
 
 **Error Handling:**
+
 ```typescript
-import { ConversionError, ConversionErrorType } from '@dcyfr/ai-rag/ingestion';
+import { ConversionError, ConversionErrorType } from "@dcyfr/ai-rag/ingestion";
 
 try {
-  const result = await convertToMarkdown('/path/to/file.pdf');
+  const result = await convertToMarkdown("/path/to/file.pdf");
 } catch (error) {
   if (error instanceof ConversionError) {
     switch (error.type) {
       case ConversionErrorType.TIMEOUT:
-        console.error('Conversion timed out - file too large?');
+        console.error("Conversion timed out - file too large?");
         break;
       case ConversionErrorType.FILE_TOO_LARGE:
         console.error(`File exceeds ${error.details?.maxFileSize} bytes`);
         break;
       case ConversionErrorType.UNSUPPORTED_FORMAT:
-        console.error('File format not supported by MarkItDown');
+        console.error("File format not supported by MarkItDown");
         break;
       default:
         console.error(`Conversion failed: ${error.message}`);
@@ -92,18 +98,18 @@ try {
 ```
 
 **LLM Integration (Optional):**
+
 ```typescript
 // Enable GPT-4 Vision or Claude for image descriptions
-const result = await convertToMarkdown('/path/to/presentation.pptx', {
+const result = await convertToMarkdown("/path/to/presentation.pptx", {
   enableLLMDescriptions: true,
-  llmModel: 'gpt-4-vision-preview', // or 'claude-3-opus-20240229'
+  llmModel: "gpt-4-vision-preview", // or 'claude-3-opus-20240229'
 });
 
 // Requires environment variables:
 // OPENAI_API_KEY=sk-...
 // ANTHROPIC_API_KEY=sk-ant-...
 ```
-
 
 ## ⚡ 30-Second Quick Start
 
@@ -123,12 +129,12 @@ const store = new InMemoryVectorStore();
 
 ## 🧭 Related Packages
 
-| Package | Purpose | Type |
-|---------|---------|------|
-| [@dcyfr/ai](../dcyfr-ai) | Core AI harness | npm package |
-| [@dcyfr/ai-agents](../dcyfr-ai-agents) | Autonomous agents | Template |
-| [@dcyfr/ai-chatbot](../dcyfr-ai-chatbot) | Chatbot template | Template |
-| [dcyfr-labs](../dcyfr-labs) | Production Next.js app | Application |
+| Package                                  | Purpose                | Type        |
+| ---------------------------------------- | ---------------------- | ----------- |
+| [@dcyfr/ai](../dcyfr-ai)                 | Core AI harness        | npm package |
+| [@dcyfr/ai-agents](../dcyfr-ai-agents)   | Autonomous agents      | Template    |
+| [@dcyfr/ai-chatbot](../dcyfr-ai-chatbot) | Chatbot template       | Template    |
+| [dcyfr-labs](../dcyfr-labs)              | Production Next.js app | Application |
 
 ---
 
@@ -174,28 +180,28 @@ import {
   InMemoryVectorStore,
   IngestionPipeline,
   RetrievalPipeline,
-} from '@dcyfr/ai-rag';
+} from "@dcyfr/ai-rag";
 
 // 1. Setup components
 const loader = new TextLoader();
 const embedder = new SimpleEmbeddingGenerator({ dimensions: 384 });
 const store = new InMemoryVectorStore({
-  collectionName: 'my-docs',
+  collectionName: "my-docs",
   embeddingDimensions: 384,
 });
 
 // 2. Ingest documents
 const ingestion = new IngestionPipeline(loader, embedder, store);
-await ingestion.ingest(['./docs/file1.txt', './docs/file2.txt']);
+await ingestion.ingest(["./docs/file1.txt", "./docs/file2.txt"]);
 
 // 3. Query for relevant context
 const retrieval = new RetrievalPipeline(store, embedder);
-const result = await retrieval.query('What is machine learning?', {
+const result = await retrieval.query("What is machine learning?", {
   limit: 5,
   threshold: 0.7,
 });
 
-console.log(result.context)  // Assembled context from top results
+console.log(result.context); // Assembled context from top results
 console.log(result.results); // Ranked document chunks with scores
 ```
 
@@ -211,7 +217,7 @@ Explore our detailed documentation covering all aspects of RAG development:
   - TextLoader, MarkdownLoader, HTMLLoader
   - Chunking strategies (fixed-size, sentence-aware, paragraph-based, semantic)
   - Custom loaders and streaming
- 
+
 - **[Embeddings Guide](docs/EMBEDDINGS.md)** - Vector embedding providers and techniques
   - OpenAI, Cohere, Anthropic, Ollama (local)
   - Batch processing and caching
@@ -232,10 +238,10 @@ Explore our detailed documentation covering all aspects of RAG development:
 **Document Loaders** - Load and chunk documents
 
 ```typescript
-import { TextLoader } from '@dcyfr/ai-rag';
+import { TextLoader } from "@dcyfr/ai-rag";
 
 const loader = new TextLoader();
-const docs = await loader.load('./document.txt', {
+const docs = await loader.load("./document.txt", {
   chunkSize: 1000,
   chunkOverlap: 200,
 });
@@ -244,10 +250,10 @@ const docs = await loader.load('./document.txt', {
 **MarkdownLoader** - Load markdown files (`.md`)
 
 ```typescript
-import { MarkdownLoader } from '@dcyfr/ai-rag';
+import { MarkdownLoader } from "@dcyfr/ai-rag";
 
 const loader = new MarkdownLoader();
-const docs = await loader.load('./README.md', {
+const docs = await loader.load("./README.md", {
   chunkSize: 800,
   chunkOverlap: 150,
 });
@@ -256,10 +262,10 @@ const docs = await loader.load('./README.md', {
 **HTMLLoader** - Load HTML files (`.html`)
 
 ```typescript
-import { HTMLLoader } from '@dcyfr/ai-rag';
+import { HTMLLoader } from "@dcyfr/ai-rag";
 
 const loader = new HTMLLoader();
-const docs = await loader.load('./page.html', {
+const docs = await loader.load("./page.html", {
   chunkSize: 600,
   chunkOverlap: 100,
 });
@@ -270,13 +276,14 @@ const docs = await loader.load('./page.html', {
 **SimpleEmbeddingGenerator** - Placeholder embeddings (for development/testing)
 
 ```typescript
-import { SimpleEmbeddingGenerator } from '@dcyfr/ai-rag';
+import { SimpleEmbeddingGenerator } from "@dcyfr/ai-rag";
 
 const embedder = new SimpleEmbeddingGenerator({ dimensions: 384 });
-const embeddings = await embedder.embed(['text 1', 'text 2']);
+const embeddings = await embedder.embed(["text 1", "text 2"]);
 ```
 
 ⚠️ **Production Note:** Use real embedding models in production:
+
 - OpenAI `text-embedding-3-small` (1536 dimensions)
 - Cohere `embed-english-v3.0`
 - Local models via Ollama
@@ -286,12 +293,12 @@ const embeddings = await embedder.embed(['text 1', 'text 2']);
 **InMemoryVectorStore** - Fast in-memory storage
 
 ```typescript
-import { InMemoryVectorStore } from '@dcyfr/ai-rag';
+import { InMemoryVectorStore } from "@dcyfr/ai-rag";
 
 const store = new InMemoryVectorStore({
-  collectionName: 'docs',
+  collectionName: "docs",
   embeddingDimensions: 384,
-  distanceMetric: 'cosine', // 'cosine' | 'dot' | 'euclidean'
+  distanceMetric: "cosine", // 'cosine' | 'dot' | 'euclidean'
 });
 
 // Add documents
@@ -302,20 +309,20 @@ const results = await store.search(queryEmbedding, 10);
 
 // Filter by metadata
 const filtered = await store.search(queryEmbedding, 10, {
-  field: 'category',
-  operator: 'eq',
-  value: 'documentation',
+  field: "category",
+  operator: "eq",
+  value: "documentation",
 });
 ```
 
 ### Ingestion Pipeline
 
 ```typescript
-import { IngestionPipeline } from '@dcyfr/ai-rag';
+import { IngestionPipeline } from "@dcyfr/ai-rag";
 
 const pipeline = new IngestionPipeline(loader, embedder, store);
 
-const result = await pipeline.ingest(['./docs/'], {
+const result = await pipeline.ingest(["./docs/"], {
   batchSize: 32,
   onProgress: (current, total, details) => {
     console.log(`Processing ${current}/${total}`);
@@ -329,23 +336,23 @@ console.log(`Generated ${result.chunksGenerated} chunks`);
 ### Retrieval Pipeline
 
 ```typescript
-import { RetrievalPipeline } from '@dcyfr/ai-rag';
+import { RetrievalPipeline } from "@dcyfr/ai-rag";
 
 const pipeline = new RetrievalPipeline(store, embedder);
 
 // Semantic search
-const result = await pipeline.query('your question here', {
+const result = await pipeline.query("your question here", {
   limit: 5,
   threshold: 0.7,
   includeMetadata: true,
 });
 
-console.log(result.context);         // Assembled context
-console.log(result.results);         // Ranked results
-console.log(result.metadata);        // Query metadata
+console.log(result.context); // Assembled context
+console.log(result.results); // Ranked results
+console.log(result.metadata); // Query metadata
 
 // Find similar documents
-const similar = await pipeline.findSimilar('doc-id-123', { limit: 10 });
+const similar = await pipeline.findSimilar("doc-id-123", { limit: 10 });
 ```
 
 ---
@@ -394,6 +401,8 @@ npm run example:metadata-filtering
 npm run example:hybrid-search
 ```
 
+For a quick directory index and targeted type-check commands, see [`examples/README.md`](examples/README.md).
+
 ---
 
 ## 🏗️ Architecture
@@ -441,21 +450,24 @@ npm run example:hybrid-search
 ### Chunking Strategy
 
 **Choose appropriate chunk sizes:**
+
 - Technical documentation: 800-1200 characters
 - Blog posts/articles: 1000-1500 characters
 - Code documentation: 600-1000 characters
 - Q&A pairs: 400-800 characters
 
 **Use 15-20% overlap:**
+
 ```typescript
 const loader = new TextLoader();
-const docs = await loader.load('./document.txt', {
+const docs = await loader.load("./document.txt", {
   chunkSize: 1000,
-  chunkOverlap: 200,  // 20% overlap prevents context loss at boundaries
+  chunkOverlap: 200, // 20% overlap prevents context loss at boundaries
 });
 ```
 
 **Preserve document structure:**
+
 - Use MarkdownLoader for `.md` files (preserves headings, code blocks)
 - Use HTMLLoader for web pages (extracts main content, excludes nav/footer)
 - Add rich metadata (source, category, tags, dates, author)
@@ -463,9 +475,11 @@ const docs = await loader.load('./document.txt', {
 ### Embedding Selection
 
 **Development/Testing:**
+
 - SimpleEmbeddingGenerator (fast, no API costs, not for production)
 
 **Production (Recommended):**
+
 - OpenAI `text-embedding-3-small` (1536 dim, $0.02/1M tokens, fast, good quality)
 - OpenAI `text-embedding-3-large` (3072 dim, best quality, higher cost)
 - Cohere `embed-english-v3.0` (1024 dim, multilingual support)
@@ -476,28 +490,31 @@ const docs = await loader.load('./document.txt', {
 ### Search Optimization
 
 **Set appropriate similarity thresholds:**
+
 ```typescript
-const result = await pipeline.query('search query', {
+const result = await pipeline.query("search query", {
   limit: 10,
-  threshold: 0.7,  // Filter results with score < 0.7 (adjust 0.6-0.8 based on needs)
+  threshold: 0.7, // Filter results with score < 0.7 (adjust 0.6-0.8 based on needs)
 });
 ```
 
 **Use metadata filtering to narrow search space:**
+
 ```typescript
-const result = await pipeline.query('search query', {
+const result = await pipeline.query("search query", {
   limit: 5,
   filter: {
-    operator: 'and',
+    operator: "and",
     filters: [
-      { field: 'category', operator: 'eq', value: 'technical' },
-      { field: 'published', operator: 'gte', value: '2024-01-01' },
+      { field: "category", operator: "eq", value: "technical" },
+      { field: "published", operator: "gte", value: "2024-01-01" },
     ],
   },
 });
 ```
 
 **For large collections (>100k documents):**
+
 - Use persistent vector stores (Chroma, Pinecone, Weaviate)
 - Enable Approximate Nearest Neighbor (ANN) search
 - Implement caching for frequent queries
@@ -511,12 +528,17 @@ const result = await pipeline.query('search query', {
 **Problem:** Retrieved context not relevant to query
 
 **Solutions:**
+
 1. Verify using same embedder for docs and queries
 2. Increase similarity threshold (0.75-0.8 for higher quality)
 3. Test embedding quality:
    ```typescript
-   const [ml, ai, pizza] = await embedder.embed(['machine learning', 'artificial intelligence', 'pizza']);
-   const similarity = cosineSimilarity(ml, ai);  // Should be >0.7
+   const [ml, ai, pizza] = await embedder.embed([
+     "machine learning",
+     "artificial intelligence",
+     "pizza",
+   ]);
+   const similarity = cosineSimilarity(ml, ai); // Should be >0.7
    const unrelated = cosineSimilarity(ml, pizza); // Should be <0.3
    ```
 4. Adjust chunk size (smaller chunks = more precise, larger = more context)
@@ -527,19 +549,25 @@ const result = await pipeline.query('search query', {
 **Problem:** Embedding API costs too high
 
 **Solutions:**
+
 1. Implement caching for frequent queries:
+
    ```typescript
-   const cache = new LRUCache<string, number[]>({ max: 10000, ttl: 1000 * 60 * 60 });
-   
+   const cache = new LRUCache<string, number[]>({
+     max: 10000,
+     ttl: 1000 * 60 * 60,
+   });
+
    async function embedWithCache(text: string): Promise<number[]> {
      const cached = cache.get(text);
      if (cached) return cached;
-     
+
      const [embedding] = await embedder.embed([text]);
      cache.set(text, embedding);
      return embedding;
    }
    ```
+
 2. Use smaller embedding dimensions (OpenAI supports 512, 1024, 1536)
 3. Switch to local models (Ollama) for development/testing
 4. Batch process documents (100+ at a time) to reduce API calls
@@ -549,6 +577,7 @@ const result = await pipeline.query('search query', {
 **Problem:** Search or ingestion too slow
 
 **Solutions:**
+
 1. **For ingestion:**
    - Increase batch size: `{ batchSize: 100 }`
    - Process files in parallel (use Promise.all with batches)
@@ -571,12 +600,13 @@ const result = await pipeline.query('search query', {
 **Problem:** Application crashes with large document collections
 
 **Solutions:**
+
 1. Use persistent vector stores instead of in-memory
 2. Set maxDocuments limit with LRU eviction:
    ```typescript
    const store = new InMemoryVectorStore({
      maxDocuments: 100000,
-     evictionPolicy: 'lru',
+     evictionPolicy: "lru",
    });
    ```
 3. Process documents in smaller batches
@@ -613,7 +643,7 @@ npm run lint
 ### 1. Use Real Embedding Models
 
 ```typescript
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
 class OpenAIEmbeddingGenerator implements EmbeddingGenerator {
   private client: OpenAI;
@@ -624,7 +654,7 @@ class OpenAIEmbeddingGenerator implements EmbeddingGenerator {
 
   async embed(texts: string[]): Promise<number[][]> {
     const response = await this.client.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: "text-embedding-3-small",
       input: texts,
     });
     return response.data.map((d) => d.embedding);
@@ -639,10 +669,10 @@ class OpenAIEmbeddingGenerator implements EmbeddingGenerator {
 ### 2. Use Persistent Vector Stores
 
 ```typescript
-import { ChromaClient } from 'chromadb';
+import { ChromaClient } from "chromadb";
 
 // Initialize Chroma for persistent storage
-const client = new ChromaClient({ path: './chroma-data' });
+const client = new ChromaClient({ path: "./chroma-data" });
 ```
 
 ### 3. Add Production Monitoring
@@ -651,8 +681,8 @@ const client = new ChromaClient({ path: './chroma-data' });
 const result = await ingestion.ingest(files, {
   onProgress: (current, total, details) => {
     // Send metrics to monitoring service
-    metrics.gauge('rag.ingestion.progress', current / total);
-    logger.info({ current, total, details }, 'Ingestion progress');
+    metrics.gauge("rag.ingestion.progress", current / total);
+    logger.info({ current, total, details }, "Ingestion progress");
   },
 });
 ```
@@ -662,6 +692,7 @@ const result = await ingestion.ingest(files, {
 ## �️ Roadmap
 
 ### v1.1 (Planned)
+
 - [ ] Additional vector stores (Qdrant, Milvus)
 - [ ] Streaming ingestion pipeline
 - [ ] Built-in caching layer
@@ -669,6 +700,7 @@ const result = await ingestion.ingest(files, {
 - [ ] Document versioning and updates
 
 ### v1.2 (Planned)
+
 - [ ] Hybrid search (keyword + semantic) built-in
 - [ ] Re-ranking strategies (cross-encoder models)
 - [ ] Multi-query retrieval
@@ -676,6 +708,7 @@ const result = await ingestion.ingest(files, {
 - [ ] Advanced chunking (recursive, semantic)
 
 ### v2.0 (Future)
+
 - [ ] Distributed vector search
 - [ ] Graph RAG (knowledge graphs + vectors)
 - [ ] Multi-modal embeddings (text + images)

@@ -18,18 +18,17 @@
  */
 
 import {
-  TextLoader,
   SimpleEmbeddingGenerator,
   InMemoryVectorStore,
   RetrievalPipeline,
-  type Document,
-} from '../src';
+  type DocumentChunk,
+} from '@dcyfr/ai-rag';
 
 /**
  * Simple BM25 implementation for keyword search
  */
 class BM25 {
-  private documents: Document[];
+  private documents: DocumentChunk[];
   private avgDocLength: number;
   private docLengths: number[];
   private termFreqs: Map<string, Map<string, number>>; // docId -> term -> freq
@@ -37,7 +36,7 @@ class BM25 {
   private k1: number = 1.2;
   private b: number = 0.75;
 
-  constructor(documents: Document[]) {
+  constructor(documents: DocumentChunk[]) {
     this.documents = documents;
     this.docLengths = [];
     this.termFreqs = new Map();
@@ -90,9 +89,9 @@ class BM25 {
   /**
    * Search documents using BM25
    */
-  search(query: string, limit: number = 10): Array<{ document: Document; score: number }> {
+  search(query: string, limit: number = 10): Array<{ document: DocumentChunk; score: number }> {
     const queryTerms = this.tokenize(query);
-    const scores: Array<{ document: Document; score: number }> = [];
+    const scores: Array<{ document: DocumentChunk; score: number }> = [];
 
     this.documents.forEach((doc, idx) => {
       const docLength = this.docLengths[idx];
@@ -147,7 +146,7 @@ class HybridSearch {
       keywordWeight?: number; // 0 to 1, default 0.5
       semanticWeight?: number; // 0 to 1, default 0.5
     } = {}
-  ): Promise<Array<{ document: Document; score: number; breakdown: { keyword: number; semantic: number } }>> {
+  ): Promise<Array<{ document: DocumentChunk; score: number; breakdown: { keyword: number; semantic: number } }>> {
     const limit = options.limit || 10;
     const keywordWeight = options.keywordWeight ?? 0.5;
     const semanticWeight = options.semanticWeight ?? 0.5;
@@ -174,7 +173,7 @@ class HybridSearch {
 
     // Combine scores using weighted average
     const combinedScores = new Map<string, { 
-      document: Document; 
+      document: DocumentChunk; 
       keyword: number; 
       semantic: number; 
       combined: number 
@@ -230,7 +229,7 @@ class HybridSearch {
       limit?: number;
       k?: number; // RRF constant, default 60
     } = {}
-  ): Promise<Array<{ document: Document; score: number }>> {
+  ): Promise<Array<{ document: DocumentChunk; score: number }>> {
     const limit = options.limit || 10;
     const k = options.k || 60;
 
@@ -244,7 +243,7 @@ class HybridSearch {
     });
 
     // Calculate RRF scores
-    const rrfScores = new Map<string, { document: Document; score: number }>();
+    const rrfScores = new Map<string, { document: DocumentChunk; score: number }>();
 
     // Add keyword contributions
     keywordResults.forEach((r, rank) => {
@@ -355,20 +354,23 @@ async function main() {
   });
 
   // Ingest documents
-  const documents: Document[] = [];
+  const documents: DocumentChunk[] = [];
 
-  for (const doc of SAMPLE_DOCS) {
+  for (let i = 0; i < SAMPLE_DOCS.length; i++) {
+    const doc = SAMPLE_DOCS[i];
     const [embedding] = await embedder.embed([doc.content]);
 
-    const document: Document = {
+    const chunk: DocumentChunk = {
       id: crypto.randomUUID(),
+      documentId: crypto.randomUUID(),
       content: doc.content,
       embedding,
-      metadata: { title: doc.title },
+      index: i,
+      metadata: { chunkIndex: 0, chunkCount: 1, title: doc.title },
     };
 
-    await store.addDocument(document);
-    documents.push(document);
+    await store.addDocuments([chunk]);
+    documents.push(chunk);
   }
 
   console.log(`✅ Ingested ${documents.length} documents\n`);
@@ -470,7 +472,7 @@ Recommendations:
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('\n❌ Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);

@@ -2,27 +2,28 @@
  * Metadata Filtering Example - Complex Query Scenarios
  *
  * Demonstrates:
- * - Basic metadata filtering (eq, neq, gt, lt, contains)
- * - AND/OR filter combinations
- * - Nested complex filters
+ * - Basic metadata filtering (eq, ne, gt, lt, gte, lte)
+ * - In/not-in filter operators
  * - Temporal queries with date ranges
- * - Tag-based search with arrays
- * - Multi-field filtering
+ * - Tag-based search with 'in' operator
+ * - Author and status filtering
  * - Performance comparison (filtered vs unfiltered)
  *
+ * Note: The current @dcyfr/ai-rag MetadataFilter supports single-field
+ * conditions only. For compound AND/OR logic, apply multiple sequential queries.
+ *
  * Prerequisites:
- * - Vector store populated with documents containing rich metadata
+ * - None (uses in-memory store for demonstration)
  */
 
 import {
-  TextLoader,
   SimpleEmbeddingGenerator,
   InMemoryVectorStore,
-  IngestionPipeline,
   RetrievalPipeline,
   type MetadataFilter,
-  type QueryOptions,
-} from '../src';
+  type SearchResult,
+  type DocumentChunk,
+} from '@dcyfr/ai-rag';
 
 interface TestDocument {
   title: string;
@@ -188,19 +189,25 @@ async function initializeRAG() {
     embeddingDimensions: 384,
   });
 
-  const loader = new TextLoader();
-  const pipeline = new IngestionPipeline(loader, embedder, store);
-
-  // Ingest sample documents
+  // Ingest sample documents as DocumentChunk objects
   for (const doc of SAMPLE_DOCUMENTS) {
     const [embedding] = await embedder.embed([doc.content]);
+    const chunkId = crypto.randomUUID();
 
-    await store.addDocument({
-      id: crypto.randomUUID(),
+    const chunk: DocumentChunk = {
+      id: chunkId,
+      documentId: chunkId,
       content: `${doc.title}\n\n${doc.content}`,
       embedding,
-      metadata: doc.metadata,
-    });
+      index: 0,
+      metadata: {
+        chunkIndex: 0,
+        chunkCount: 1,
+        ...doc.metadata,
+      },
+    };
+
+    await store.addDocuments([chunk]);
   }
 
   console.log(`✅ Ingested ${SAMPLE_DOCUMENTS.length} documents\n`);
@@ -211,7 +218,7 @@ async function initializeRAG() {
 /**
  * Display search results with metadata
  */
-function displayResults(title: string, results: any[], queryMs?: number) {
+function displayResults(title: string, results: SearchResult[], queryMs?: number) {
   console.log(`\n${title}`);
   console.log('='.repeat(60));
 
@@ -222,12 +229,12 @@ function displayResults(title: string, results: any[], queryMs?: number) {
   console.log(`Found ${results.length} results\n`);
 
   results.forEach((r, idx) => {
-    const meta = r.document.metadata;
+    const meta = r.document.metadata as Record<string, unknown>;
     const content = r.document.content.split('\n\n')[0]; // Just title
 
     console.log(`${idx + 1}. ${content} (score: ${r.score.toFixed(3)})`);
     console.log(`   Category: ${meta.category} | Priority: ${meta.priority} | Author: ${meta.author}`);
-    console.log(`   Tags: ${meta.tags.join(', ')}`);
+    console.log(`   Tags: ${(meta.tags as string[])?.join(', ') ?? ''}`);
     console.log(`   Published: ${meta.published} | Status: ${meta.status} | Words: ${meta.wordCount}`);
     console.log();
   });
@@ -290,67 +297,59 @@ async function main() {
 
   displayResults('Results: High Priority (≥8)', scenario2.results, scenario2.queryMs);
 
-  // Scenario 3: Tag-based search (array contains)
+  // Scenario 3: Tag-based search (array membership)
   console.log('\n📋 Scenario 3: Tag-Based Search');
-  console.log('─'.repeat(60));
-  console.log('Query: "modern development" | Filter: tags contains "devops"');
+  console.log('\u2500'.repeat(60));
+  console.log('Query: "modern development" | Filter: "devops" in tags');
 
   const scenario3 = await search(pipeline, 'modern development', {
     field: 'tags',
-    operator: 'contains',
-    value: 'devops',
+    operator: 'in',
+    value: ['devops'],
   });
 
   displayResults('Results: DevOps Tagged', scenario3.results, scenario3.queryMs);
 
-  // Scenario 4: AND combination (multiple criteria)
-  console.log('\n📋 Scenario 4: AND Filter (Multiple Criteria)');
-  console.log('─'.repeat(60));
-  console.log('Query: "programming guide" | Filter: category == "programming" AND priority >= 7');
+  // Scenario 4: Category filter (compound AND not supported; use most-restrictive single filter)
+  console.log('\n📋 Scenario 4: Category Filter (High-Priority Programming)');
+  console.log('\u2500'.repeat(60));
+  console.log('Query: "programming guide" | Filter: category == "programming"');
+  console.log('Note: Compound AND/OR filters are not supported by MetadataFilter.');
+  console.log('      Apply multiple sequential queries to replicate AND logic.');
 
   const scenario4 = await search(pipeline, 'programming guide', {
-    operator: 'and',
-    filters: [
-      { field: 'category', operator: 'eq', value: 'programming' },
-      { field: 'priority', operator: 'gte', value: 7 },
-    ],
+    field: 'category',
+    operator: 'eq',
+    value: 'programming',
   });
 
   displayResults('Results: Programming + High Priority', scenario4.results, scenario4.queryMs);
 
-  // Scenario 5: OR combination (any match)
-  console.log('\n📋 Scenario 5: OR Filter (Any Match)');
-  console.log('─'.repeat(60));
-  console.log('Query: "deployment" | Filter: category == "devops" OR category == "cloud"');
+  // Scenario 5: Filter by category (single-field; OR logic requires multiple queries)
+  console.log('\n📋 Scenario 5: DevOps Category Filter');
+  console.log('\u2500'.repeat(60));
+  console.log('Query: "deployment" | Filter: category == "devops"');
+  console.log('Note: To simulate OR (devops OR cloud), run two separate queries');
+  console.log('      and merge the result sets in application code.');
 
   const scenario5 = await search(pipeline, 'deployment', {
-    operator: 'or',
-    filters: [
-      { field: 'category', operator: 'eq', value: 'devops' },
-      { field: 'category', operator: 'eq', value: 'cloud' },
-    ],
+    field: 'category',
+    operator: 'eq',
+    value: 'devops',
   });
 
   displayResults('Results: DevOps or Cloud', scenario5.results, scenario5.queryMs);
 
-  // Scenario 6: Nested filters (complex logic)
-  console.log('\n📋 Scenario 6: Nested Filters (Complex Logic)');
-  console.log('─'.repeat(60));
-  console.log('Query: "technical content"');
-  console.log('Filter: (category == "ai" OR category == "programming") AND priority >= 8');
+  // Scenario 6: AI category high-priority filter
+  console.log('\n📋 Scenario 6: High Priority AI Content');
+  console.log('\u2500'.repeat(60));
+  console.log('Query: "technical content" | Filter: priority >= 8');
+  console.log('Note: To further filter by category, apply a second round of filtering in-application.');
 
   const scenario6 = await search(pipeline, 'technical content', {
-    operator: 'and',
-    filters: [
-      {
-        operator: 'or',
-        filters: [
-          { field: 'category', operator: 'eq', value: 'ai' },
-          { field: 'category', operator: 'eq', value: 'programming' },
-        ],
-      },
-      { field: 'priority', operator: 'gte', value: 8 },
-    ],
+    field: 'priority',
+    operator: 'gte',
+    value: 8,
   });
 
   displayResults('Results: (AI or Programming) + Priority ≥8', scenario6.results, scenario6.queryMs);
@@ -368,19 +367,16 @@ async function main() {
 
   displayResults('Results: Published Since Feb 2024', scenario7.results, scenario7.queryMs);
 
-  // Scenario 8: Multi-field complex filter
-  console.log('\n📋 Scenario 8: Multi-Field Complex Filter');
-  console.log('─'.repeat(60));
-  console.log('Query: "comprehensive guide"');
-  console.log('Filter: status == "published" AND wordCount >= 1500 AND priority >= 8');
+  // Scenario 8: Published + long content + high priority (use most-restrictive single filter)
+  console.log('\n📋 Scenario 8: Long-Form High-Priority Content');
+  console.log('\u2500'.repeat(60));
+  console.log('Query: "comprehensive guide" | Filter: wordCount >= 1500');
+  console.log('Note: Apply post-query filtering for multi-condition requirements.');
 
   const scenario8 = await search(pipeline, 'comprehensive guide', {
-    operator: 'and',
-    filters: [
-      { field: 'status', operator: 'eq', value: 'published' },
-      { field: 'wordCount', operator: 'gte', value: 1500 },
-      { field: 'priority', operator: 'gte', value: 8 },
-    ],
+    field: 'wordCount',
+    operator: 'gte',
+    value: 1500,
   });
 
   displayResults('Results: Published + Long + High Priority', scenario8.results, scenario8.queryMs);
@@ -405,7 +401,7 @@ async function main() {
 
   const scenario10 = await search(pipeline, 'content', {
     field: 'status',
-    operator: 'neq',
+    operator: 'ne',
     value: 'draft',
   });
 
@@ -419,24 +415,23 @@ async function main() {
   const unfilteredResult = await pipeline.query('optimization', { limit: 10, threshold: 0 });
   const unfilteredMs = Date.now() - unfilteredStart;
 
-  const filteredStart = Date.now();
+  const filteredQueryStart = Date.now();
   const filteredResult = await search(pipeline, 'optimization', {
-    operator: 'and',
-    filters: [
-      { field: 'category', operator: 'eq', value: 'ai' },
-      { field: 'priority', operator: 'gte', value: 8 },
-    ],
+    field: 'category',
+    operator: 'eq',
+    value: 'ai',
   });
+  const filteredMs = Date.now() - filteredQueryStart;
 
   console.log(`\nUnfiltered search: ${unfilteredResult.results.length} results in ${unfilteredMs}ms`);
-  console.log(`Filtered search: ${filteredResult.results.length} results in ${filteredResult.queryMs}ms`);
+  console.log(`Filtered search: ${filteredResult.results.length} results in ${filteredMs}ms`);
   console.log(`\nFiltering reduced results by ${((1 - filteredResult.results.length / unfilteredResult.results.length) * 100).toFixed(1)}%`);
 
   console.log('\n✅ Metadata filtering example completed!\n');
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('\n❌ Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);

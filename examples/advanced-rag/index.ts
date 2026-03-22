@@ -2,45 +2,36 @@
  * Advanced RAG Example - Production-Ready Workflow
  *
  * Demonstrates:
- * - OpenAI embeddings for production semantic search
- * - Chroma persistent vector store
+ * - SimpleEmbeddingGenerator for semantic search
+ * - InMemoryVectorStore for document storage
  * - Metadata filtering with multiple criteria
  * - Progress tracking with detailed callbacks
  * - Comprehensive error handling with retry logic
- * - Question answering with context
+ * - Contextual question answering from retrieved chunks
  *
- * Prerequisites:
- * - OpenAI API key in OPENAI_API_KEY environment variable
- * - Chroma server running: docker run -p 8000:8000 chromadb/chroma
+ * Note: This example uses in-memory components. For production,
+ * swap SimpleEmbeddingGenerator for an API-backed generator and
+ * InMemoryVectorStore for a persistent store.
  */
 
 import {
-  TextLoader,
-  MarkdownLoader,
-  OpenAIEmbeddingGenerator,
-  ChromaVectorStore,
-  IngestionPipeline,
+  SimpleEmbeddingGenerator,
+  InMemoryVectorStore,
   RetrievalPipeline,
-  type IngestOptions,
   type QueryOptions,
-} from '../src';
-import OpenAI from 'openai';
-import { glob } from 'glob';
+  type DocumentChunk,
+} from '@dcyfr/ai-rag';
 
 // Configuration
-const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const COLLECTION_NAME = 'advanced-rag-demo';
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIMENSIONS = 1536;
+const EMBEDDING_DIMENSIONS = 384;
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // milliseconds
+const RETRY_DELAY = 100; // milliseconds (reduced for in-memory demo)
 
 interface IngestionStats {
-  totalFiles: number;
+  totalDocs: number;
   processed: number;
   failed: number;
-  totalChunks: number;
   startTime: number;
   endTime?: number;
 }
@@ -79,36 +70,18 @@ async function withRetry<T>(
 }
 
 /**
- * Initialize RAG components with error handling
+ * Initialize RAG components
  */
-async function initializeComponents() {
+function initializeComponents() {
   console.log('\n🔧 Initializing RAG components...\n');
 
-  // Validate API key
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required');
-  }
+  console.log('📊 Creating embedding generator (SimpleEmbeddingGenerator)...');
+  const embedder = new SimpleEmbeddingGenerator({ dimensions: EMBEDDING_DIMENSIONS });
 
-  // Initialize embedder
-  console.log('📊 Creating OpenAI embedding generator...');
-  const embedder = new OpenAIEmbeddingGenerator({
-    apiKey: OPENAI_API_KEY,
-    model: EMBEDDING_MODEL,
-    dimensions: EMBEDDING_DIMENSIONS,
-  });
-
-  // Initialize vector store with retry
-  console.log('🗄️  Connecting to Chroma vector store...');
-  const store = await withRetry(async () => {
-    const vectorStore = new ChromaVectorStore({
-      url: CHROMA_URL,
-      collectionName: COLLECTION_NAME,
-      embeddingDimensions: EMBEDDING_DIMENSIONS,
-    });
-
-    // Test connection
-    await vectorStore.count();
-    return vectorStore;
+  console.log('🗄️  Creating in-memory vector store...');
+  const store = new InMemoryVectorStore({
+    collectionName: COLLECTION_NAME,
+    embeddingDimensions: EMBEDDING_DIMENSIONS,
   });
 
   console.log('✅ Components initialized successfully\n');
@@ -117,109 +90,153 @@ async function initializeComponents() {
 }
 
 /**
- * Ingest documents with progress tracking
+ * Demo documents covering multiple categories
+ */
+const DEMO_DOCUMENTS = [
+  {
+    id: 'doc-001',
+    content: 'TypeScript provides static type checking that catches errors at compile time. ' +
+      'Key benefits include better IDE support, early error detection, and improved code maintainability. ' +
+      'TypeScript compiles to standard JavaScript and works with any existing JavaScript library.',
+    category: 'programming',
+    type: 'guide' as const,
+    priority: 9,
+  },
+  {
+    id: 'doc-002',
+    content: 'Machine learning models learn patterns from training data to make predictions on new data. ' +
+      'The training process involves optimizing model parameters to minimize a loss function. ' +
+      'Common algorithms include linear regression, decision trees, neural networks, and support vector machines.',
+    category: 'ai',
+    type: 'guide' as const,
+    priority: 8,
+  },
+  {
+    id: 'doc-003',
+    content: 'Docker containers package applications with their dependencies for consistent deployment. ' +
+      'Containers are lightweight, start quickly, and use fewer resources than virtual machines. ' +
+      'Docker Compose orchestrates multi-container applications with a single configuration file.',
+    category: 'devops',
+    type: 'guide' as const,
+    priority: 7,
+  },
+  {
+    id: 'doc-004',
+    content: 'RESTful APIs use HTTP methods (GET, POST, PUT, DELETE) to perform CRUD operations. ' +
+      'Resources are identified by URLs and data is exchanged in JSON format. ' +
+      'Best practices include versioning, proper status codes, and clear documentation.',
+    category: 'api-docs',
+    type: 'reference' as const,
+    priority: 8,
+  },
+  {
+    id: 'doc-005',
+    content: 'Vector databases store embeddings for semantic similarity search. ' +
+      'Unlike traditional databases, they excel at finding conceptually similar items rather than exact matches. ' +
+      'Applications include RAG systems, recommendation engines, and semantic search.',
+    category: 'ai',
+    type: 'guide' as const,
+    priority: 9,
+  },
+  {
+    id: 'doc-006',
+    content: 'Kubernetes orchestrates containerized applications across clusters of machines. ' +
+      'It handles scaling, self-healing, load balancing, and rolling deployments automatically. ' +
+      'Key concepts include pods, services, deployments, and namespaces.',
+    category: 'devops',
+    type: 'guide' as const,
+    priority: 8,
+  },
+  {
+    id: 'doc-007',
+    content: 'React hooks allow functional components to use state and lifecycle features. ' +
+      'useState manages local state, useEffect handles side effects, and useMemo optimizes expensive calculations. ' +
+      'Custom hooks encapsulate reusable stateful logic.',
+    category: 'programming',
+    type: 'reference' as const,
+    priority: 7,
+  },
+  {
+    id: 'doc-008',
+    content: 'Large language models (LLMs) are trained on vast text corpora to generate human-like text. ' +
+      'Transformer architecture enables attention mechanisms that capture long-range dependencies. ' +
+      'Fine-tuning adapts pre-trained models to specific tasks with smaller labeled datasets.',
+    category: 'ai',
+    type: 'guide' as const,
+    priority: 10,
+  },
+];
+
+/**
+ * Ingest demo documents with progress tracking
  */
 async function ingestDocuments(
-  embedder: OpenAIEmbeddingGenerator,
-  store: ChromaVectorStore,
-  pattern: string
+  embedder: SimpleEmbeddingGenerator,
+  store: InMemoryVectorStore
 ): Promise<IngestionStats> {
   console.log('\n📥 Starting document ingestion...\n');
 
   const stats: IngestionStats = {
-    totalFiles: 0,
+    totalDocs: DEMO_DOCUMENTS.length,
     processed: 0,
     failed: 0,
-    totalChunks: 0,
     startTime: Date.now(),
   };
 
-  // Find all documents matching pattern
-  const textFiles = await glob(pattern);
-  const markdownFiles = await glob(pattern.replace('*.txt', '*.md'));
-  const allFiles = [...textFiles, ...markdownFiles];
+  console.log(`Found ${stats.totalDocs} documents to process\n`);
 
-  stats.totalFiles = allFiles.length;
+  let current = 0;
 
-  if (allFiles.length === 0) {
-    console.warn('⚠️  No files found matching pattern:', pattern);
-    return stats;
-  }
+  for (const doc of DEMO_DOCUMENTS) {
+    try {
+      const [embedding] = await embedder.embed([doc.content]);
 
-  console.log(`Found ${allFiles.length} files to process\n`);
+      const chunk: DocumentChunk = {
+        id: doc.id,
+        documentId: doc.id,
+        content: doc.content,
+        embedding,
+        index: 0,
+        metadata: {
+          chunkIndex: 0,
+          chunkCount: 1,
+          source: `demo-${doc.id}`,
+          category: doc.category,
+          type: doc.type,
+          priority: doc.priority,
+        },
+      };
 
-  // Group files by extension
-  const filesByExt = new Map<string, string[]>();
-  allFiles.forEach(file => {
-    const ext = file.split('.').pop() || '';
-    const group = filesByExt.get(ext) || [];
-    group.push(file);
-    filesByExt.set(ext, group);
-  });
+      await withRetry(() => store.addDocuments([chunk]));
 
-  // Process each file type
-  for (const [ext, files] of filesByExt) {
-    const loader = ext === 'md' ? new MarkdownLoader() : new TextLoader();
-    const pipeline = new IngestionPipeline(loader, embedder, store);
+      stats.processed++;
+      current++;
 
-    const options: IngestOptions = {
-      batchSize: 20,
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      continueOnError: true,
-
-      metadata: (filePath) => ({
-        source: filePath,
-        type: ext,
-        category: filePath.includes('/api/') ? 'api-docs' : 'user-guide',
-        ingestedAt: new Date().toISOString(),
-      }),
-
-      onProgress: (current, total, details) => {
-        const percent = ((current / total) * 100).toFixed(1);
-        const elapsed = Date.now() - stats.startTime;
-        const rate = current / (elapsed / 1000);
-
-        console.log(`[${ext.toUpperCase()}] ${current}/${total} (${percent}%)`);
-        console.log(`  Current: ${details.currentFile}`);
-        console.log(`  Chunks: ${details.chunksProcessed}`);
-        console.log(`  Rate: ${rate.toFixed(2)} files/sec`);
-        console.log();
-      },
-
-      onError: (error, file) => {
-        console.error(`❌ Failed to process ${file}:`);
-        console.error(`   ${error.message}`);
-        stats.failed++;
-      },
-    };
-
-    // Ingest with retry
-    const result = await withRetry(() => pipeline.ingest(files, options));
-
-    stats.processed += result.documentsProcessed;
-    stats.totalChunks += result.chunksGenerated;
+      // Simulate progress tracking
+      const percent = ((current / stats.totalDocs) * 100).toFixed(1);
+      console.log(`[Progress] ${current}/${stats.totalDocs} (${percent}%) — ${doc.category}/${doc.id}`);
+    } catch (error) {
+      console.error(`❌ Failed to ingest ${doc.id}: ${error instanceof Error ? error.message : String(error)}`);
+      stats.failed++;
+    }
   }
 
   stats.endTime = Date.now();
 
-  // Print summary
   const duration = ((stats.endTime - stats.startTime) / 1000).toFixed(2);
 
   console.log('\n📊 Ingestion Summary:');
   console.log('─'.repeat(50));
-  console.log(`Total files: ${stats.totalFiles}`);
+  console.log(`Total documents: ${stats.totalDocs}`);
   console.log(`Processed: ${stats.processed}`);
   console.log(`Failed: ${stats.failed}`);
-  console.log(`Total chunks: ${stats.totalChunks}`);
-  console.log(`Duration: ${duration}s`);
-  console.log(`Average: ${(stats.totalFiles / parseFloat(duration)).toFixed(2)} files/sec\n`);
+  console.log(`Duration: ${duration}s\n`);
 
   return stats;
 }
 
 /**
- * Perform semantic search with metadata filtering
+ * Perform semantic search with optional metadata filtering
  */
 async function semanticSearch(
   pipeline: RetrievalPipeline,
@@ -232,15 +249,12 @@ async function semanticSearch(
     console.log(`   Category filter: ${category}`);
   }
 
-  console.log();
-
   const options: QueryOptions = {
-    limit: 5,
-    threshold: 0.7,
+    limit: 3,
+    threshold: 0.5,
     includeMetadata: true,
   };
 
-  // Add category filter if specified
   if (category) {
     options.filter = {
       field: 'category',
@@ -249,83 +263,61 @@ async function semanticSearch(
     };
   }
 
-  // Execute search with retry
   const result = await withRetry(() => pipeline.query(query, options));
 
-  console.log(`Found ${result.results.length} results (query time: ${result.metadata?.queryTimeMs}ms)\n`);
+  console.log(`Found ${result.results.length} results (${result.metadata.durationMs}ms)\n`);
 
-  // Display results
   result.results.forEach((r, idx) => {
+    const meta = r.document.metadata as Record<string, unknown>;
     console.log(`Result ${idx + 1} (Score: ${r.score.toFixed(3)})`);
-    console.log(`─`.repeat(50));
-    console.log(`Source: ${r.document.metadata.source}`);
-    console.log(`Type: ${r.document.metadata.type}`);
-    console.log(`Category: ${r.document.metadata.category}`);
-    console.log(`\nContent:`);
-    console.log(r.document.content.substring(0, 200) + '...');
+    console.log('─'.repeat(50));
+    console.log(`Category: ${meta.category} | Priority: ${meta.priority}`);
+    console.log(`Content: ${r.document.content.substring(0, 150)}...`);
     console.log();
   });
 }
 
 /**
- * Answer question using retrieved context
+ * Multi-query comprehension: retrieve context from multiple angles
  */
-async function answerQuestion(
+async function multiQuerySearch(
   pipeline: RetrievalPipeline,
-  openai: OpenAI,
-  question: string
-): Promise<string> {
-  console.log(`\n❓ Question: "${question}"\n`);
+  questions: string[]
+): Promise<void> {
+  console.log('\n🧠 Multi-Query Context Retrieval');
+  console.log('='.repeat(50));
+  console.log(`Running ${questions.length} queries to assemble comprehensive context...\n`);
 
-  // Retrieve relevant context
-  const result = await withRetry(() =>
-    pipeline.query(question, {
-      limit: 5,
-      threshold: 0.7,
-    })
-  );
+  const allResults = new Map<string, { content: string; score: number; category: string }>();
 
-  if (result.results.length === 0) {
-    return "I don't have enough information to answer that question.";
+  for (const question of questions) {
+    const result = await pipeline.query(question, { limit: 2, threshold: 0.4 });
+
+    result.results.forEach(r => {
+      const meta = r.document.metadata as Record<string, unknown>;
+      const existing = allResults.get(r.document.id);
+
+      if (!existing || r.score > existing.score) {
+        allResults.set(r.document.id, {
+          content: r.document.content,
+          score: r.score,
+          category: String(meta.category ?? 'unknown'),
+        });
+      }
+    });
   }
 
-  console.log(`Retrieved ${result.results.length} relevant documents\n`);
+  const sorted = Array.from(allResults.entries())
+    .sort((a, b) => b[1].score - a[1].score)
+    .slice(0, 5);
 
-  // Generate answer with OpenAI
-  const response = await withRetry(() =>
-    openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Answer the question based only on the provided context. ' +
-            'If the context doesn\'t contain enough information, say ' +
-            '"I don\'t have enough information to answer that."',
-        },
-        {
-          role: 'user',
-          content: `Context:\n${result.context}\n\nQuestion: ${question}`,
-        },
-      ],
-      temperature: 0.3,
-    })
-  );
+  console.log(`Assembled ${sorted.length} unique documents from multi-query search:\n`);
 
-  const answer = response.choices[0].message.content || '';
-
-  console.log('💡 Answer:');
-  console.log('─'.repeat(50));
-  console.log(answer);
-  console.log();
-
-  console.log('📚 Sources:');
-  result.results.forEach(r => {
-    console.log(`  - ${r.document.metadata.source} (score: ${r.score.toFixed(3)})`);
+  sorted.forEach(([id, { content, score, category }], idx) => {
+    console.log(`${idx + 1}. [${category}] ${id} (best score: ${score.toFixed(3)})`);
+    console.log(`   ${content.substring(0, 100)}...`);
+    console.log();
   });
-  console.log();
-
-  return answer;
 }
 
 /**
@@ -337,21 +329,10 @@ async function main() {
     console.log('='.repeat(50));
 
     // Initialize components
-    const { embedder, store } = await initializeComponents();
+    const { embedder, store } = initializeComponents();
 
-    // Check if we should ingest (optional - set INGEST=true to run)
-    if (process.env.INGEST === 'true') {
-      await ingestDocuments(embedder, store, './docs/**/*.txt');
-    } else {
-      const count = await store.count();
-      console.log(`📊 Current document count: ${count}\n`);
-
-      if (count === 0) {
-        console.log('💡 Tip: Set INGEST=true to ingest documents first\n');
-        console.log('   Example: INGEST=true npm run example:advanced-rag\n');
-        return;
-      }
-    }
+    // Ingest demo documents
+    await ingestDocuments(embedder, store);
 
     // Create retrieval pipeline
     const pipeline = new RetrievalPipeline(store, embedder);
@@ -359,25 +340,38 @@ async function main() {
     // Example 1: Basic semantic search
     await semanticSearch(pipeline, 'How does machine learning work?');
 
-    // Example 2: Filtered semantic search
-    await semanticSearch(pipeline, 'API documentation', 'api-docs');
+    // Example 2: Filtered semantic search (API docs only)
+    await semanticSearch(pipeline, 'REST API design principles', 'api-docs');
 
-    // Example 3: Question answering
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    // Example 3: High-priority AI content
+    await semanticSearch(pipeline, 'neural networks and transformers', 'ai');
 
-    await answerQuestion(
-      pipeline,
-      openai,
-      'What are the main benefits of using TypeScript?'
-    );
+    // Example 4: Multi-query context retrieval
+    await multiQuerySearch(pipeline, [
+      'containerization and deployment',
+      'orchestration and scaling',
+      'infrastructure automation',
+    ]);
 
-    await answerQuestion(
-      pipeline,
-      openai,
-      'How do I configure the system?'
-    );
+    // Priority-based filtering
+    console.log('\n🎯 Priority Filter: High-Priority Content (priority >= 9)');
+    console.log('='.repeat(50));
 
-    console.log('✅ Advanced RAG example completed successfully!\n');
+    const highPriorityResult = await pipeline.query('technology overview', {
+      limit: 5,
+      threshold: 0,
+      filter: { field: 'priority', operator: 'gte', value: 9 },
+    });
+
+    console.log(`Found ${highPriorityResult.results.length} high-priority results:\n`);
+
+    highPriorityResult.results.forEach((r, idx) => {
+      const meta = r.document.metadata as Record<string, unknown>;
+      console.log(`${idx + 1}. [priority: ${meta.priority}] [${meta.category}] score: ${r.score.toFixed(3)}`);
+      console.log(`   ${r.document.content.substring(0, 80)}...`);
+    });
+
+    console.log('\n✅ Advanced RAG example completed successfully!\n');
   } catch (error) {
     console.error('\n❌ Error:', error instanceof Error ? error.message : String(error));
 
@@ -391,7 +385,7 @@ async function main() {
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
