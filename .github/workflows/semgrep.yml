@@ -1,0 +1,33 @@
+name: Semgrep SAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: semgrep/semgrep:1.140.0
+    # Skip on dependabot PRs — secrets aren't available there, would noise-fail.
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run Semgrep
+        run: semgrep ci
+        env:
+          # When set, fetches rules from semgrep.dev org and uploads findings
+          # to the dashboard. When unset, falls back to the auto config
+          # (community rules) without upload. Configure org-wide via
+          # gh secret set --org <org> --visibility all SEMGREP_APP_TOKEN
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
